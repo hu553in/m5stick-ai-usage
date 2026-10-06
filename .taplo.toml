@@ -1,0 +1,3 @@
+# Taplo does not read .gitignore; keep generated files out of formatting.
+include = ["**/*.toml", ".taplo.toml"]
+exclude = [".pio/**", ".venv/**", "artifacts/**", "node_modules/**"]

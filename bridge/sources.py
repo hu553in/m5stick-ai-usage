@@ -5,7 +5,7 @@ import os
 import tomllib
 from pathlib import Path
 
-from bridge.config import accounts_config
+from bridge.config import accounts_config, validate_source_path
 
 
 def named_accounts(source: dict) -> dict:
@@ -15,10 +15,7 @@ def named_accounts(source: dict) -> dict:
         directory = Path(anthropic["accounts_dir"]).expanduser()
         if directory.is_dir():
             named = {
-                p.name: {
-                    "label": p.name,
-                    "credentials_path": str(p / ".credentials.json"),
-                }
+                p.name: {"label": p.name, "credentials_path": str(p / ".credentials.json")}
                 for p in sorted(directory.iterdir())
                 if p.is_dir()
             }
@@ -27,11 +24,7 @@ def named_accounts(source: dict) -> dict:
 
 
 def available_accounts(source: dict) -> list[str]:
-    return [
-        "openai",
-        "anthropic",
-        *("anthropic@" + name for name in named_accounts(source)),
-    ]
+    return ["openai", "anthropic", *("anthropic@" + name for name in named_accounts(source))]
 
 
 def selected_usage_config(source: dict, accounts: list[dict]) -> str:
@@ -41,9 +34,7 @@ def selected_usage_config(source: dict, accounts: list[dict]) -> str:
     available = {"openai", "anthropic", *("anthropic@" + name for name in named)}
     missing = set(ids) - available
     if missing:
-        raise ValueError(
-            "Unknown or unsupported account IDs: " + ", ".join(sorted(missing))
-        )
+        raise ValueError("Unknown or unsupported account IDs: " + ", ".join(sorted(missing)))
     anthropic = source.get("anthropic", {})
     claude = any(i == "anthropic" or i.startswith("anthropic@") for i in ids)
     lines = [
@@ -52,11 +43,11 @@ def selected_usage_config(source: dict, accounts: list[dict]) -> str:
         f"show_default_account = {str('anthropic' in ids).lower()}",
     ]
     if claude:
-        for key in ("credentials_path", "desktop_profiles_dir"):
-            if anthropic.get(key):
-                lines.append(
-                    key + " = " + json.dumps(anthropic[key], ensure_ascii=False)
-                )
+        lines.extend(
+            key + " = " + json.dumps(anthropic[key], ensure_ascii=False)
+            for key in ("credentials_path", "desktop_profiles_dir")
+            if anthropic.get(key)
+        )
     for source_id in ids:
         if not source_id.startswith("anthropic@"):
             continue
@@ -68,8 +59,7 @@ def selected_usage_config(source: dict, accounts: list[dict]) -> str:
             "",
             "[[anthropic.accounts]]",
             "label = " + json.dumps(label, ensure_ascii=False),
-            "credentials_path = "
-            + json.dumps(row["credentials_path"], ensure_ascii=False),
+            "credentials_path = " + json.dumps(row["credentials_path"], ensure_ascii=False),
         ]
     lines += ["", "[openai]", f"enabled = {str('openai' in ids).lower()}"]
     if "openai" in ids and source.get("openai", {}).get("codex_auth_path"):
@@ -77,16 +67,15 @@ def selected_usage_config(source: dict, accounts: list[dict]) -> str:
             "codex_auth_path = "
             + json.dumps(source["openai"]["codex_auth_path"], ensure_ascii=False)
         )
-    # These unrelated providers are enabled by default in ai-usagebar 1.32.
+    # Z.AI and OpenRouter are enabled by default in ai-usagebar 1.32.
     for vendor in ("copilot", "zai", "openrouter"):
         lines += ["", f"[{vendor}]", "enabled = false"]
     return "\n".join(lines) + "\n"
 
 
 def write_usage_config(source_path: Path, target: Path, accounts: list[dict]) -> Path:
-    if source_path.expanduser().resolve() == target.resolve():
-        raise ValueError("source_config must point to the original ai-usagebar config")
-    source = tomllib.loads(source_path.expanduser().read_text())
+    source_path = validate_source_path(source_path, target)
+    source = tomllib.loads(source_path.read_text())
     text = selected_usage_config(source, accounts)
     target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     temp = target.with_suffix(".tmp")

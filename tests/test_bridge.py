@@ -2,13 +2,13 @@ import copy
 import json
 import tempfile
 import threading
+import tomllib
 import unittest
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-import tomllib
 from bridge.config import DEFAULT_DISPLAY, accounts_config, validate_config
 from bridge.server import Snapshot, handler_for, normalize, timestamp
 from bridge.sources import selected_usage_config
@@ -63,15 +63,9 @@ class QuotaTests(unittest.TestCase):
         source = {
             "anthropic": {
                 "accounts": [
-                    {
-                        "label": "alpha",
-                        "credentials_path": "~/Some Folder/alpha/.credentials.json",
-                    },
+                    {"label": "alpha", "credentials_path": "~/Some Folder/alpha/.credentials.json"},
                     {"label": "beta", "credentials_path": "~/beta/.credentials.json"},
-                    {
-                        "label": "unused",
-                        "credentials_path": "~/unused/.credentials.json",
-                    },
+                    {"label": "unused", "credentials_path": "~/unused/.credentials.json"},
                 ]
             },
             "zai": {"api_key": "unrelated-key"},
@@ -80,10 +74,7 @@ class QuotaTests(unittest.TestCase):
         text = selected_usage_config(source, ACCOUNTS)
         selected = tomllib.loads(text)
         self.assertFalse(selected["anthropic"]["show_default_account"])
-        self.assertEqual(
-            [a["label"] for a in selected["anthropic"]["accounts"]],
-            ["alpha", "beta"],
-        )
+        self.assertEqual([a["label"] for a in selected["anthropic"]["accounts"]], ["alpha", "beta"])
         self.assertTrue(selected["openai"]["enabled"])
         self.assertFalse(selected["zai"]["enabled"])
         self.assertNotIn("unrelated-key", text)
@@ -102,7 +93,9 @@ class QuotaTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.store = Snapshot(Path(self.temp.name) / "snapshot.json", ACCOUNTS)
-        self.now = timestamp(FETCHED)
+        now = timestamp(FETCHED)
+        assert now is not None
+        self.now = now
 
     def tearDown(self):
         self.temp.cleanup()
@@ -131,8 +124,7 @@ class QuotaTests(unittest.TestCase):
         data["entries"][2]["metrics"][1].update(percent=0, reset_at=None)
         self.store.update(data, self.now)
         self.assertEqual(
-            self.store.read(self.now)["accounts"][2]["short"],
-            {"used": 0, "reset_at": None},
+            self.store.read(self.now)["accounts"][2]["short"], {"used": 0, "reset_at": None}
         )
 
     def test_model_specific_weekly_is_not_substituted(self):
@@ -166,9 +158,7 @@ class QuotaTests(unittest.TestCase):
 
     def test_staleness_uses_source_timestamp(self):
         self.store.update(document(), self.now)
-        self.assertTrue(
-            all(r["stale"] for r in self.store.read(self.now + 301)["accounts"])
-        )
+        self.assertTrue(all(r["stale"] for r in self.store.read(self.now + 301)["accounts"]))
 
     def test_expired_reset_does_not_clear_used_percentage(self):
         self.store.update(document(), self.now)
@@ -196,15 +186,9 @@ class QuotaTests(unittest.TestCase):
                 row["metrics"][1]["percent"] = i * 10
             store.update(data, self.now)
             rows = store.read(self.now)["accounts"]
-            self.assertEqual(
-                [row["id"] for row in rows], [row["id"] for row in selected]
-            )
-            self.assertEqual(
-                [row["label"] for row in rows], [f"r{i}" for i in range(count)]
-            )
-            self.assertEqual(
-                [row["short"]["used"] for row in rows], [20, 10, 0][:count]
-            )
+            self.assertEqual([row["id"] for row in rows], [row["id"] for row in selected])
+            self.assertEqual([row["label"] for row in rows], [f"r{i}" for i in range(count)])
+            self.assertEqual([row["short"]["used"] for row in rows], [20, 10, 0][:count])
 
     def test_cache_reconfiguration_retains_by_id_and_uses_new_labels(self):
         self.store.update(document(), self.now)
@@ -220,8 +204,7 @@ class QuotaTests(unittest.TestCase):
         self.assertEqual(rows[2]["label"], "o2")
         restarted.update({"schema_version": 1, "entries": []}, self.now)
         self.assertEqual(
-            [r["label"] for r in restarted.read(self.now)["accounts"]],
-            ["n1", "b2", "o2"],
+            [r["label"] for r in restarted.read(self.now)["accounts"]], ["n1", "b2", "o2"]
         )
 
     def test_display_settings_are_sent_without_secrets(self):
@@ -270,9 +253,7 @@ class QuotaTests(unittest.TestCase):
         )
         self.assertFalse(claude["openai"]["enabled"])
         self.assertTrue(claude["anthropic"]["show_default_account"])
-        self.assertEqual(
-            claude["anthropic"]["credentials_path"], "~/custom/.credentials.json"
-        )
+        self.assertEqual(claude["anthropic"]["credentials_path"], "~/custom/.credentials.json")
         with self.assertRaises(ValueError):
             selected_usage_config({}, [{"id": "anthropic@missing", "label": "m"}])
 
@@ -284,10 +265,7 @@ class QuotaTests(unittest.TestCase):
             "anthropic": {
                 "accounts_dir": str(directory),
                 "accounts": [
-                    {
-                        "label": "override",
-                        "credentials_path": "~/профили/📁/.credentials.json",
-                    }
+                    {"label": "override", "credentials_path": "~/профили/📁/.credentials.json"}
                 ],
             }
         }
@@ -309,20 +287,17 @@ class QuotaTests(unittest.TestCase):
 
     def test_http_requires_device_token_and_returns_only_display_data(self):
         self.store.update(document(), self.now)
-        server = ThreadingHTTPServer(
-            ("127.0.0.1", 0), handler_for(self.store, "test-token")
-        )
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(self.store, "test-token"))
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         url = f"http://127.0.0.1:{server.server_port}/v1/status"
         try:
             with self.assertRaises(urllib.error.HTTPError) as error:
-                urllib.request.urlopen(url)
-            self.assertEqual(error.exception.code, 401)
-            request = urllib.request.Request(
-                url, headers={"Authorization": "Bearer test-token"}
-            )
-            with urllib.request.urlopen(request) as response:
+                urllib.request.urlopen(url)  # nosec B310 # loopback HTTP test server.
+            with error.exception:
+                self.assertEqual(error.exception.code, 401)
+            request = urllib.request.Request(url, headers={"Authorization": "Bearer test-token"})
+            with urllib.request.urlopen(request) as response:  # nosec B310 # loopback HTTP server.
                 body = response.read()
                 self.assertEqual(int(response.headers["Content-Length"]), len(body))
                 self.assertEqual(len(json.loads(body)["accounts"]), 3)

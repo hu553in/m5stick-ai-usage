@@ -1,0 +1,16 @@
+# Native tests include the firmware's platform-independent parsing and time code.
+# The ESP32 translation unit is checked separately with Cppcheck and its compiler.
+Checks: >-
+  -*, clang-analyzer-*, bugprone-*, performance-*, portability-*,
+  -bugprone-easily-swappable-parameters, -bugprone-exception-escape, -portability-avoid-pragma-once
+# The supported Clang/GCC toolchains support pragma once. Positional integer
+# arguments are intentional here; uncaught exceptions fail these native tests.
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(^|/)firmware/src/'
+# LLVM 22 reports false leaks when inlining ArduinoJson's placement-new allocator.
+# Keep template-body analysis enabled; native sanitizers exercise the allocator.
+ExtraArgs:
+  - -Xclang
+  - -analyzer-config
+  - -Xclang
+  - c++-allocator-inlining=false

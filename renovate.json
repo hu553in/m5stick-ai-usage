@@ -1,0 +1,36 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>hu553in/common-things//presets/renovate/python",
+    "github>hu553in/common-things//presets/renovate/bun"
+  ],
+  "enabledManagers": ["bun", "custom.regex", "github-actions", "pep621"],
+  "customDatasources": {
+    "platformio": {
+      "defaultRegistryUrlTemplate": "https://api.registry.platformio.org/v3/packages/{{packageName}}",
+      "transformTemplates": [
+        "{\"releases\": [versions.{\"version\": name}], \"sourceUrl\": repository_url}"
+      ]
+    }
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track PlatformIO platform and firmware libraries",
+      "managerFilePatterns": ["/(^|/)platformio\\.ini$/"],
+      "matchStrings": [
+        "renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+(?:platform\\s*=\\s*)?[^@\\r\\n]+@(?<currentValue>[^\\s;]+)"
+      ],
+      "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
+      "description": "Track external validation tools",
+      "managerFilePatterns": ["/(^|/)Makefile$/"],
+      "matchStrings": [
+        "renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+(?:CPPCHECK|RENOVATE)_VERSION\\s*:=\\s*(?<currentValue>\\S+)"
+      ],
+      "versioningTemplate": "semver"
+    }
+  ]
+}

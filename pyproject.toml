@@ -1,0 +1,96 @@
+[project]
+name = "m5stick-ai-usage"
+version = "1.0.2"
+description = "Codex and Claude usage-limit monitor for M5StickC Plus2."
+authors = [{ name = "Ruslan Khasanshin" }]
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = ["pillow>=12.3.0", "pyserial>=3.5"]
+
+[project.urls]
+Repository = "https://github.com/hu553in/m5stick-ai-usage"
+
+[dependency-groups]
+dev = [
+  "bandit>=1.9.4",
+  "clang-format==23.1.3",
+  "clang-tidy==22.1.8",
+  "coverage>=7.16.2",
+  "deptry>=0.25.1",
+  "platformio>=6.2.0",
+  "prek>=0.5.5",
+  "pysentry-rs>=0.5.0",
+  "ruff>=0.16.10",
+  "ty>=0.0.85",
+  "vulture>=2.16",
+]
+
+[tool.uv]
+link-mode = "copy"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "I",
+  "UP",
+  "B",
+  "SIM",
+  "ARG",
+  "PL",
+  "RUF",
+  "C4",
+  "FA",
+  "N",
+  "PERF",
+  "W",
+  "PGH004",
+  "T10",
+]
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = false
+
+[tool.ruff.lint.per-file-ignores]
+# These comparisons express wire-format, percentage, Wi-Fi and DNS bounds directly.
+"bridge/config.py" = ["PLR2004"]
+"bridge/server.py" = ["PLR2004"]
+"scripts/create_config.py" = ["PLR2004"]
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true
+
+[tool.pysentry.defaults]
+fail_on = "low"
+
+[tool.pysentry.sources]
+enabled = ["pypa", "pypi", "osv"]
+
+[tool.deptry]
+known_first_party = ["bridge"]
+extend_exclude = ["artifacts", '\.pio']
+
+[tool.vulture]
+paths = ["bridge", "scripts", "tests"]
+min_confidence = 100
+sort_by_size = true
+
+[tool.bandit.assert_used]
+# Assertions are intentional in the unit and hardware test runners.
+skips = ["./tests/*.py", "./scripts/verify_device.py"]
+
+[tool.coverage.run]
+branch = true
+source = ["bridge", "scripts"]
+patch = ["subprocess"]
+data_file = "artifacts/.coverage"
+# This is a hardware test runner, not application code.
+omit = ["scripts/verify_device.py"]
+
+[tool.coverage.report]
+include_namespace_packages = true
+show_missing = true

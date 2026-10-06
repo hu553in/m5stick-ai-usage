@@ -24,25 +24,32 @@ JsonDocument fixture(size_t count) {
     row["short"]["reset_at"] = int64_t(1791310000);
     row["week"] = nullptr;
   }
+  // JsonDocument owns its storage and returns by value; no local pointer escapes.
+  // NOLINTNEXTLINE(clang-analyzer-core.StackAddressEscape)
   return doc;
+}
+
+void expectSnapshot(const JsonDocument &doc, QuotaSnapshot &snapshot, bool expected) {
+  const bool actual = readSnapshot(doc, snapshot);
+  assert(actual == expected);
 }
 
 int main(int argc, char **argv) {
   QuotaSnapshot snapshot;
   for (size_t count = 1; count <= MAX_ACCOUNTS; ++count) {
     auto doc = fixture(count);
-    assert(readSnapshot(doc, snapshot));
+    expectSnapshot(doc, snapshot, true);
     assert(snapshot.count == count);
     assert(snapshot.display.brightness == 64);
     assert(snapshot.display.pollSeconds == 30);
     assert(snapshot.display.warningPercent == 70);
-    assert(snapshot.accounts[count - 1].shortWindow.used == 10 * (count - 1));
+    assert(snapshot.accounts[count - 1].shortWindow.used == static_cast<float>(10 * (count - 1)));
     assert(!snapshot.accounts[0].week.present);
   }
   auto changed = fixture(1);
   changed["accounts"][0]["id"] = "another@account";
   changed["accounts"][0]["label"] = "z";
-  assert(readSnapshot(changed, snapshot));
+  expectSnapshot(changed, snapshot, true);
   assert(snapshot.count == 1);
   assert(!strcmp(snapshot.accounts[0].id, "another@account"));
   assert(!strcmp(snapshot.accounts[0].label, "z"));
@@ -50,38 +57,39 @@ int main(int argc, char **argv) {
   // A bad last row must not replace any part of the retained snapshot.
   auto bad = fixture(3);
   bad["accounts"][2]["label"] = "too-long";
-  assert(!readSnapshot(bad, snapshot));
+  expectSnapshot(bad, snapshot, false);
   assert(snapshot.count == 1);
   assert(!strcmp(snapshot.accounts[0].id, "another@account"));
   for (size_t count : {0, 4}) {
     auto doc = fixture(count);
-    assert(!readSnapshot(doc, snapshot));
+    expectSnapshot(doc, snapshot, false);
   }
   bad = fixture(2);
   bad["accounts"][1]["id"] = "source-0";
-  assert(!readSnapshot(bad, snapshot));
+  expectSnapshot(bad, snapshot, false);
   bad = fixture(2);
   bad["accounts"][1]["label"] = "a0";
-  assert(!readSnapshot(bad, snapshot));
+  expectSnapshot(bad, snapshot, false);
   for (const char *label : {"*", "a b", "", "я"}) {
     bad = fixture(1);
     bad["accounts"][0]["label"] = label;
-    assert(!readSnapshot(bad, snapshot));
+    expectSnapshot(bad, snapshot, false);
   }
   bad = fixture(1);
   bad["display"]["brightness"] = 256;
-  assert(!readSnapshot(bad, snapshot));
+  expectSnapshot(bad, snapshot, false);
   bad = fixture(1);
   bad["display"]["offline_seconds"] = 5;
-  assert(!readSnapshot(bad, snapshot));
+  expectSnapshot(bad, snapshot, false);
   bad = fixture(1);
   bad["accounts"][0]["short"]["used"] = true;
-  assert(!readSnapshot(bad, snapshot));
+  expectSnapshot(bad, snapshot, false);
   if (argc == 2) {
     std::ifstream stream(argv[1]);
     JsonDocument doc;
-    assert(!deserializeJson(doc, stream));
-    assert(readSnapshot(doc, snapshot));
+    const auto error = deserializeJson(doc, stream);
+    assert(!error);
+    expectSnapshot(doc, snapshot, true);
     assert(snapshot.count == doc["accounts"].size());
   }
 }

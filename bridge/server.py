@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import copy
 import datetime as dt
 import hmac
@@ -11,7 +12,7 @@ import logging
 import math
 import os
 import signal
-import subprocess
+import subprocess  # nosec B404 # the configured collector runs without a shell.
 import sys
 import threading
 import time
@@ -74,12 +75,8 @@ def empty_account(source_id: str, label: str) -> dict:
     }
 
 
-def normalize(
-    document: dict, previous: list[dict], now: int, accounts: list[dict]
-) -> list[dict]:
-    if document.get("schema_version") != 1 or not isinstance(
-        document.get("entries"), list
-    ):
+def normalize(document: dict, previous: list[dict], now: int, accounts: list[dict]) -> list[dict]:
+    if document.get("schema_version") != 1 or not isinstance(document.get("entries"), list):
         raise ValueError("unsupported ai-usagebar document")
     entries = {e.get("id"): e for e in document["entries"] if isinstance(e, dict)}
     old = {e["id"]: e for e in previous}
@@ -89,11 +86,7 @@ def normalize(
         row = copy.deepcopy(old.get(source_id, empty_account(source_id, label)))
         entry = entries.get(source_id)
         error = "account unavailable"
-        if (
-            entry is not None
-            and not entry.get("error")
-            and entry.get("status") == "ready"
-        ):
+        if entry is not None and not entry.get("error") and entry.get("status") == "ready":
             try:
                 fetched = timestamp(entry.get("fetched_at"))
                 if fetched is None or fetched > now + 300:
@@ -109,7 +102,7 @@ def normalize(
                 }
                 result.append(row)
                 continue
-            except (ValueError, TypeError, OverflowError):
+            except ValueError, TypeError, OverflowError:
                 error = "invalid quota data"
         row.update(label=label, stale=True, error=error)
         result.append(row)
@@ -128,11 +121,7 @@ def atomic_json(path: Path, data: dict) -> None:
 
 class Snapshot:
     def __init__(
-        self,
-        cache: Path,
-        accounts: list[dict],
-        max_age: int = 300,
-        display: dict | None = None,
+        self, cache: Path, accounts: list[dict], max_age: int = 300, display: dict | None = None
     ):
         self.cache = cache
         self.max_age = max_age
@@ -153,7 +142,7 @@ class Snapshot:
                             "stale": True,
                             "error": "refreshing",
                         }
-        except (OSError, ValueError, KeyError, TypeError):
+        except OSError, ValueError, KeyError, TypeError:
             pass
 
     def update(self, document: dict, now: int | None = None) -> None:
@@ -187,7 +176,7 @@ class Snapshot:
 
 def collect(binary: Path, snapshot: Snapshot, source_config: Path) -> None:
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 # local config selects the collector; no shell.
             [str(binary), "--config", str(source_config), "usage", "--json"],
             capture_output=True,
             text=True,
@@ -202,13 +191,7 @@ def collect(binary: Path, snapshot: Snapshot, source_config: Path) -> None:
     except subprocess.TimeoutExpired:
         snapshot.fail("collector timeout")
         LOG.warning("ai-usagebar timed out")
-    except (
-        OSError,
-        ValueError,
-        TypeError,
-        AttributeError,
-        subprocess.CalledProcessError,
-    ):
+    except OSError, ValueError, TypeError, AttributeError, subprocess.CalledProcessError:
         snapshot.fail("collector error")
         LOG.error("Could not collect quota data")
 
@@ -221,7 +204,8 @@ def handler_for(snapshot: Snapshot, token: str) -> type[BaseHTTPRequestHandler]:
             super().setup()
             self.connection.settimeout(5)
 
-        def log_message(self, *_args):
+        # Accept BaseHTTPRequestHandler's positional and keyword arguments without access logs.
+        def log_message(self, *_args: object, **_kwargs: object) -> None:
             pass
 
         def send_json(self, code: int, payload: dict) -> None:
@@ -233,10 +217,8 @@ def handler_for(snapshot: Snapshot, token: str) -> type[BaseHTTPRequestHandler]:
             self.send_header("Connection", "close")
             self.end_headers()
             self.close_connection = True
-            try:
+            with contextlib.suppress(BrokenPipeError, ConnectionResetError):
                 self.wfile.write(body)
-            except (BrokenPipeError, ConnectionResetError):
-                pass
 
         def do_GET(self):
             if self.path == "/health":
@@ -261,9 +243,7 @@ def main() -> None:
         "--once", action="store_true", help="Fetch and print display JSON, then exit"
     )
     args = parser.parse_args()
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     config_path = args.config.expanduser().resolve()
     try:
         config = load_config(config_path)
@@ -288,10 +268,7 @@ def main() -> None:
         return
     interval = config["poll_seconds"]
     stop = threading.Event()
-    server = ThreadingHTTPServer(
-        (config["listen"], config["port"]),
-        handler_for(snapshot, token),
-    )
+    server = ThreadingHTTPServer((config["listen"], config["port"]), handler_for(snapshot, token))
     server.daemon_threads = True
 
     def poll() -> None:

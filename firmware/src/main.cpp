@@ -23,9 +23,7 @@ struct Settings {
   String host;
   String token;
   uint16_t port = 8765;
-  bool ready() const {
-    return !ssid.isEmpty() && !host.isEmpty() && token.length() >= 32;
-  }
+  bool ready() const { return !ssid.isEmpty() && !host.isEmpty() && token.length() >= 32; }
 } settings;
 
 Preferences preferences;
@@ -46,25 +44,19 @@ uint32_t previousMillis = 0;
 uint64_t timeAnchorMillis = 0;
 
 int64_t nowSeconds() {
-  return snapshot.serverTime
-             ? snapshot.serverTime + (clockMillis - timeAnchorMillis) / 1000
-             : 0;
+  return advanceTimestamp(snapshot.serverTime, clockMillis - timeAnchorMillis);
 }
 
 bool offline() {
   return !lastRequestOK || WiFi.status() != WL_CONNECTED || !gotSnapshot ||
-         uint32_t(millis() - lastSuccess) >
-             uint32_t(snapshot.display.offlineSeconds * 1000);
+         uint32_t(millis() - lastSuccess) > uint32_t(snapshot.display.offlineSeconds * 1000);
 }
 
 bool isStale(const Account &account) {
-  return account.stale || account.fetched <= 0 ||
-         nowSeconds() - account.fetched > snapshot.maxAge;
+  return account.stale || account.fetched <= 0 || nowSeconds() - account.fetched > snapshot.maxAge;
 }
 
-void logEvent(const char *event) {
-  Serial.printf("{\"event\":\"%s\"}\n", event);
-}
+void logEvent(const char *event) { Serial.printf("{\"event\":\"%s\"}\n", event); }
 
 void drawWindow(const Window &window, int center, int top) {
   frame.setTextDatum(middle_center);
@@ -79,9 +71,8 @@ void drawWindow(const Window &window, int center, int top) {
   else
     snprintf(used, sizeof(used), "-");
   frame.drawString(used, center, top + 10);
-  char countdown[24];
-  formatCountdown(countdown, sizeof(countdown),
-                  window.present ? window.reset : 0, nowSeconds());
+  char countdown[COUNTDOWN_BUFFER_SIZE];
+  formatCountdown(countdown, sizeof(countdown), window.present ? window.reset : 0, nowSeconds());
   if (countdown[0] == '-')
     frame.setFont(&fonts::FreeSansBold9pt7b);
   else
@@ -97,10 +88,7 @@ void drawScreen() {
   bool stale = false;
   for (size_t i = 0; i < snapshot.count; ++i)
     stale |= isStale(snapshot.accounts[i]);
-  const char *state = !settings.ready() ? "setup"
-                      : offline()       ? "offline"
-                      : stale           ? "stale"
-                                        : "";
+  const char *state = !settings.ready() ? "setup" : offline() ? "offline" : stale ? "stale" : "";
   frame.setTextColor((offline() || stale) ? AMBER : MUTED, BG);
   frame.drawString(state, 4, 4);
   frame.setTextDatum(top_center);
@@ -195,8 +183,7 @@ void fetchSnapshot() {
   HTTPClient http;
   http.setConnectTimeout(2000);
   http.setTimeout(3000);
-  String url =
-      "http://" + serverIP.toString() + ":" + settings.port + "/v1/status";
+  String url = "http://" + serverIP.toString() + ":" + settings.port + "/v1/status";
   if (!http.begin(client, url)) {
     lastRequestOK = false;
     lastError = "http_init";
@@ -290,9 +277,8 @@ void serialCommand(const String &line) {
     joinWiFi();
     nextPoll = millis();
   } else if (command == "configure") {
-    if (!doc["ssid"].is<String>() || !doc["password"].is<String>() ||
-        !doc["host"].is<String>() || !doc["token"].is<String>() ||
-        !doc["port"].is<int>()) {
+    if (!doc["ssid"].is<String>() || !doc["password"].is<String>() || !doc["host"].is<String>() ||
+        !doc["token"].is<String>() || !doc["port"].is<int>()) {
       logEvent("invalid_config");
       return;
     }
@@ -302,9 +288,8 @@ void serialCommand(const String &line) {
     next.host = doc["host"].as<String>();
     next.token = doc["token"].as<String>();
     int port = doc["port"] | 8765;
-    if (!next.ready() || next.ssid.length() > 32 ||
-        next.password.length() > 63 || next.host.length() > 253 ||
-        next.token.length() > 128 || port < 1 || port > 65535) {
+    if (!next.ready() || next.ssid.length() > 32 || next.password.length() > 63 ||
+        next.host.length() > 253 || next.token.length() > 128 || port < 1 || port > 65535) {
       logEvent("invalid_config");
       return;
     }
@@ -388,8 +373,7 @@ void loop() {
   M5.update();
   readSerial();
   if (settings.ready()) {
-    if (WiFi.status() != WL_CONNECTED &&
-        uint32_t(millis() - lastJoin) >= RETRY_MS)
+    if (WiFi.status() != WL_CONNECTED && uint32_t(millis() - lastJoin) >= RETRY_MS)
       joinWiFi();
     if (WiFi.status() == WL_CONNECTED && int32_t(millis() - nextPoll) >= 0)
       fetchSnapshot();

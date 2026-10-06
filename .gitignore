@@ -5,3 +5,7 @@ __pycache__/
 .DS_Store
 artifacts/
 *.local.json
+node_modules/
+.ruff_cache/
+.cache/
+compile_commands.json

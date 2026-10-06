@@ -16,13 +16,9 @@ from bridge.config import DEFAULT_CONFIG
 
 def connect(port: str | None) -> serial.Serial:
     if port is None:
-        candidates = [
-            p.device for p in list_ports.comports() if p.vid in (0x1A86, 0x10C4)
-        ]
+        candidates = [p.device for p in list_ports.comports() if p.vid in (0x1A86, 0x10C4)]
         if len(candidates) != 1:
-            raise SystemExit(
-                "Specify --port when there is not exactly one USB serial device"
-            )
+            raise SystemExit("Specify --port when there is not exactly one USB serial device")
         port = candidates[0]
     link = serial.Serial(port=None, baudrate=115200, timeout=1, write_timeout=5)
     # Do not reset the board merely by opening a diagnostic connection.
@@ -41,11 +37,7 @@ def main() -> None:
         "command", choices=["configure", "status", "screenshot", "reboot", "reconnect"]
     )
     parser.add_argument("--port")
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=DEFAULT_CONFIG.with_name("device.json"),
-    )
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG.with_name("device.json"))
     parser.add_argument("--output", type=Path, default=Path("artifacts/display.png"))
     args = parser.parse_args()
     message = {"command": args.command}
@@ -65,7 +57,8 @@ def main() -> None:
         while time.monotonic() < deadline:
             line = link.readline()
             if args.command == "screenshot" and line.startswith(b"FRAME "):
-                from PIL import Image
+                # Status and configuration do not need the screenshot dependency.
+                from PIL import Image  # noqa: PLC0415
 
                 _, width, height, mode = line.decode().split()
                 if mode != "RGB888" or (int(width), int(height)) != (240, 135):
@@ -78,23 +71,17 @@ def main() -> None:
                 if len(pixels) != length:
                     raise SystemExit("Incomplete framebuffer")
                 args.output.parent.mkdir(parents=True, exist_ok=True)
-                Image.frombytes("RGB", (int(width), int(height)), bytes(pixels)).save(
-                    args.output
-                )
+                Image.frombytes("RGB", (int(width), int(height)), bytes(pixels)).save(args.output)
                 print(f"Saved {args.output}")
                 return
             try:
                 event = json.loads(line)
-            except (ValueError, UnicodeDecodeError):
+            except ValueError, UnicodeDecodeError:
                 continue
             if event.get("event") == expected.get(args.command):
                 print(json.dumps(event, indent=2))
                 return
-            if event.get("event") in {
-                "invalid_config",
-                "save_failed",
-                "unknown_command",
-            }:
+            if event.get("event") in {"invalid_config", "save_failed", "unknown_command"}:
                 raise SystemExit(event["event"])
     raise SystemExit("Device did not acknowledge the command")
 

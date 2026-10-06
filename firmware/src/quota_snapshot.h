@@ -53,8 +53,7 @@ inline bool readWindow(JsonVariantConst value, Window &out) {
   out = Window{};
   if (value.isNull())
     return true;
-  if (!value.is<JsonObjectConst>() || !value["used"].is<float>() ||
-      value["used"].is<bool>())
+  if (!value.is<JsonObjectConst>() || !value["used"].is<float>() || value["used"].is<bool>())
     return false;
   float used = value["used"].as<float>();
   if (!isfinite(used) || used < 0 || used > 100)
@@ -84,10 +83,9 @@ inline bool readSnapshot(const JsonDocument &doc, QuotaSnapshot &out) {
       !readInteger(display["offline_seconds"], next.display.pollSeconds, 3600,
                    next.display.offlineSeconds) ||
       !readInteger(display["brightness"], 1, 255, next.display.brightness) ||
-      !readInteger(display["warning_percent"], 0, 100,
-                   next.display.warningPercent) ||
-      !readInteger(display["critical_percent"], next.display.warningPercent,
-                   100, next.display.criticalPercent))
+      !readInteger(display["warning_percent"], 0, 100, next.display.warningPercent) ||
+      !readInteger(display["critical_percent"], next.display.warningPercent, 100,
+                   next.display.criticalPercent))
     return false;
   next.count = doc["accounts"].size();
   if (next.count < 1 || next.count > MAX_ACCOUNTS)
@@ -111,23 +109,20 @@ inline bool readSnapshot(const JsonDocument &doc, QuotaSnapshot &out) {
       return false;
     for (size_t j = 0; j < length; ++j) {
       char c = label[j];
-      if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-            (c >= '0' && c <= '9')))
+      if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')))
         return false;
     }
     for (size_t j = 0; j < i; ++j) {
-      if (!strcmp(id, next.accounts[j].id) ||
-          !strcmp(label, next.accounts[j].label))
+      if (!strcmp(id, next.accounts[j].id) || !strcmp(label, next.accounts[j].label))
         return false;
     }
     auto &account = next.accounts[i];
-    strcpy(account.id, id);
-    strcpy(account.label, label);
-    if (!row["stale"].is<bool>() || row["short"].isUnbound() ||
-        row["week"].isUnbound())
+    // Lengths were checked against these buffers before the copy.
+    memcpy(account.id, id, strlen(id) + 1);
+    memcpy(account.label, label, length + 1);
+    if (!row["stale"].is<bool>() || row["short"].isUnbound() || row["week"].isUnbound())
       return false;
-    if (!readWindow(row["short"], account.shortWindow) ||
-        !readWindow(row["week"], account.week))
+    if (!readWindow(row["short"], account.shortWindow) || !readWindow(row["week"], account.week))
       return false;
     if (!row["fetched_at"].isNull() && !row["fetched_at"].is<int64_t>())
       return false;

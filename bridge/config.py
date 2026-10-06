@@ -9,6 +9,7 @@ from pathlib import Path
 DEFAULT_CONFIG = Path.home() / ".config/m5stick-ai-usage/bridge.json"
 DEFAULT_SOURCE = Path.home() / "Library/Application Support/ai-usagebar/config.toml"
 MAX_ACCOUNTS = 3
+ALL_INTERFACES = "0.0.0.0"  # nosec B104 # The authenticated display connects over the LAN.
 DEFAULT_DISPLAY = {
     "poll_seconds": 15,
     "offline_seconds": 45,
@@ -34,13 +35,9 @@ def accounts_config(value: object) -> list[dict]:
             or not source_id.isprintable()
             or source_id.strip() != source_id
         ):
-            raise ValueError(
-                "account id must contain 1 to 128 printable ASCII characters"
-            )
+            raise ValueError("account id must contain 1 to 128 printable ASCII characters")
         if not isinstance(label, str) or not re.fullmatch(r"[A-Za-z0-9]{1,2}", label):
-            raise ValueError(
-                "account label must contain 1 or 2 ASCII letters or digits"
-            )
+            raise ValueError("account label must contain 1 or 2 ASCII letters or digits")
         if source_id in ids or label in labels:
             raise ValueError("account ids and labels must be unique")
         ids.add(source_id)
@@ -60,20 +57,10 @@ def display_config(value: object) -> dict:
         raise ValueError("unknown display setting")
     result = DEFAULT_DISPLAY | value
     integer(result["poll_seconds"], "display.poll_seconds", 5, 300)
-    integer(
-        result["offline_seconds"],
-        "display.offline_seconds",
-        result["poll_seconds"],
-        3600,
-    )
+    integer(result["offline_seconds"], "display.offline_seconds", result["poll_seconds"], 3600)
     integer(result["brightness"], "display.brightness", 1, 255)
     integer(result["warning_percent"], "display.warning_percent", 0, 100)
-    integer(
-        result["critical_percent"],
-        "display.critical_percent",
-        result["warning_percent"],
-        100,
-    )
+    integer(result["critical_percent"], "display.critical_percent", result["warning_percent"], 100)
     return result
 
 
@@ -92,16 +79,13 @@ def validate_config(value: dict) -> dict:
         "display",
     }
     if value.keys() - known:
-        raise ValueError(
-            "unknown bridge settings: " + ", ".join(sorted(value.keys() - known))
-        )
+        raise ValueError("unknown bridge settings: " + ", ".join(sorted(value.keys() - known)))
     config = {
-        "listen": "0.0.0.0",
+        "listen": ALL_INTERFACES,
         "port": 8765,
         "poll_seconds": 120,
         "max_age": 300,
-        "ai_usagebar": shutil.which("ai-usagebar")
-        or str(Path.home() / ".cargo/bin/ai-usagebar"),
+        "ai_usagebar": shutil.which("ai-usagebar") or str(Path.home() / ".cargo/bin/ai-usagebar"),
         "source_config": str(DEFAULT_SOURCE),
     } | copy.deepcopy(value)
     token = config.get("token")
@@ -118,10 +102,48 @@ def validate_config(value: dict) -> dict:
     integer(config["poll_seconds"], "poll_seconds", 60, 3600)
     integer(config["max_age"], "max_age", 30, 3600)
     for key in ("listen", "ai_usagebar", "source_config"):
-        if not isinstance(config[key], str) or not config[key].strip():
+        setting = config[key]
+        if not isinstance(setting, str) or not setting.strip():
             raise ValueError(f"{key} must be a nonempty string")
     return config
 
 
+def generated_paths(directory: Path) -> tuple[Path, ...]:
+    return (directory / "device.json", directory / "ai-usagebar.toml", directory / "snapshot.json")
+
+
+def _same_path(first: Path, second: Path) -> bool:
+    # Compare resolved paths without case, including dangling links on macOS.
+    return str(first.resolve()).casefold() == str(second.resolve()).casefold() or (
+        first.exists() and second.exists() and first.samefile(second)
+    )
+
+
+def validate_config_path(path: Path) -> Path:
+    path = path.expanduser().resolve()
+    for generated in generated_paths(path.parent):
+        for reserved in (generated, generated.with_suffix(".tmp")):
+            if _same_path(path, reserved):
+                raise ValueError(
+                    f"--config conflicts with generated file {reserved.name}; use another filename"
+                )
+    return path
+
+
+def validate_source_path(source_path: Path, *outputs: Path) -> Path:
+    source_path = source_path.expanduser().resolve()
+    for output in outputs:
+        for reserved in (output, output.with_suffix(".tmp")):
+            if _same_path(source_path, reserved):
+                raise ValueError(
+                    f"source_config conflicts with output file {reserved.name}; "
+                    "use a separate original config"
+                )
+    return source_path
+
+
 def load_config(path: Path) -> dict:
-    return validate_config(json.loads(path.expanduser().read_text()))
+    path = validate_config_path(path)
+    config = validate_config(json.loads(path.read_text()))
+    validate_source_path(Path(config["source_config"]), path, *generated_paths(path.parent))
+    return config
