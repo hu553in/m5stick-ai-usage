@@ -1,0 +1,19 @@
+{
+  "accounts": [
+    { "id": "openai", "label": "o1" },
+    { "id": "anthropic@account-a", "label": "a1" }
+  ],
+  "listen": "0.0.0.0",
+  "port": 8765,
+  "poll_seconds": 120,
+  "max_age": 300,
+  "ai_usagebar": "~/.cargo/bin/ai-usagebar",
+  "source_config": "~/Library/Application Support/ai-usagebar/config.toml",
+  "display": {
+    "poll_seconds": 15,
+    "offline_seconds": 45,
+    "brightness": 160,
+    "warning_percent": 80,
+    "critical_percent": 95
+  }
+}
