@@ -4,6 +4,10 @@ A Wi-Fi quota display for M5StickC Plus2. A Mac bridge reads selected Codex and 
 through the installed `ai-usagebar`; the device shows used percentages and reset countdowns on one
 landscape screen.
 
+<p align="center">
+  <img src="docs/images/display.png" alt="Quota display captured from an M5StickC Plus2" />
+</p>
+
 Accounts, display labels and row order come from local configuration. The screen supports one to
 three accounts, with one or two ASCII letters or digits per label. Each name is followed by a small
 grey `· used`; `reset` aligns below `used`. The `5h` and `week` columns show percentages and
