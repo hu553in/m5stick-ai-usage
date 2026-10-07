@@ -41,12 +41,13 @@ def selected_usage_config(source: dict, accounts: list[dict]) -> str:
         "[anthropic]",
         f"enabled = {str(claude).lower()}",
         f"show_default_account = {str('anthropic' in ids).lower()}",
+        # ai-usagebar 1.32 treats a non-directory profile store as empty. Keep
+        # Desktop discovery from adding accounts or shadowing selected CLI IDs.
+        "desktop_profiles_dir = " + json.dumps(os.devnull),
     ]
-    if claude:
-        lines.extend(
-            key + " = " + json.dumps(anthropic[key], ensure_ascii=False)
-            for key in ("credentials_path", "desktop_profiles_dir")
-            if anthropic.get(key)
+    if claude and anthropic.get("credentials_path"):
+        lines.append(
+            "credentials_path = " + json.dumps(anthropic["credentials_path"], ensure_ascii=False)
         )
     for source_id in ids:
         if not source_id.startswith("anthropic@"):

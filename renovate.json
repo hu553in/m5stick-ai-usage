@@ -25,10 +25,10 @@
     },
     {
       "customType": "regex",
-      "description": "Track external validation tools",
+      "description": "Track Cppcheck",
       "managerFilePatterns": ["/(^|/)Makefile$/"],
       "matchStrings": [
-        "renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+(?:CPPCHECK|RENOVATE)_VERSION\\s*:=\\s*(?<currentValue>\\S+)"
+        "renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+CPPCHECK_VERSION\\s*:=\\s*(?<currentValue>\\S+)"
       ],
       "versioningTemplate": "semver"
     }

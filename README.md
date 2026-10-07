@@ -14,12 +14,11 @@ the display over Wi-Fi.
 ## Requirements
 
 - M5StickC Plus2, a USB data cable for flashing and provisioning, and a 2.4 GHz Wi-Fi network.
-- A Mac with ai-usagebar installed and authenticated for the accounts to display.
+- A Mac with ai-usagebar installed and authenticated for the CLI accounts to display.
 - [uv](https://docs.astral.sh/uv/getting-started/installation/),
-  [Bun](https://bun.sh/docs/installation), Node.js 24.11 or later within the 24.x line, Make and
-  Clang. On macOS, install the Xcode Command Line Tools with `xcode-select --install`. Linux
-  development checks require `clang` and `build-essential` on Debian/Ubuntu; the launch agent is
-  macOS-specific.
+  [Bun](https://bun.sh/docs/installation), Node.js, Make and Clang. On macOS, install the Xcode
+  Command Line Tools with `xcode-select --install`. Linux development checks require `clang` and
+  `build-essential` on Debian/Ubuntu; the launch agent is macOS-specific.
 
 ## Setup
 
@@ -27,9 +26,6 @@ the display over Wi-Fi.
 make install-deps
 uv run --locked python scripts/create_config.py --list-accounts
 ```
-
-The installer uses `uv.lock` and `bun.lock` for Python and JS dependencies, then installs the
-PlatformIO packages. uv selects Python from `pyproject.toml`.
 
 Choose account IDs from the list. `openai` and `anthropic` are listed even if the corresponding
 provider is not logged in. Named Claude accounts must exist in ai-usagebar's configuration:
@@ -57,36 +53,22 @@ conflicting paths before writing files.
 
 ## Configuration
 
-[config.example.json](config.example.json) shows the editable settings with fictional account names.
-Actual settings live outside the checkout in `~/.config/m5stick-ai-usage/`:
-
-| File               | Contents                                                                                      |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| `bridge.json`      | Selected accounts, labels, network binding, polling, display preferences and access token     |
-| `device.json`      | Wi-Fi credentials, bridge hostname, port and token; provisioned into device NVS over USB      |
-| `ai-usagebar.toml` | Generated source selection referencing existing credentials; the original config is untouched |
-| `snapshot.json`    | Last known quotas retained across bridge restarts                                             |
+[config.example.json](config.example.json) lists editable settings with fictional account names.
+Setup writes `bridge.json` and USB-provisioned `device.json` under `~/.config/m5stick-ai-usage/`. It
+generates `ai-usagebar.toml` beside them, referencing existing CLI credentials without changing the
+original source config. `snapshot.json` retains the last known quotas across bridge restarts.
 
 Supported account IDs are `openai`, `anthropic` for default Claude, and `anthropic@NAME` for named
-Claude accounts. Explicit accounts and `accounts_dir` discovery are supported. Row order follows
-`accounts`; labels contain one or two ASCII letters or digits.
+Claude accounts. Explicit accounts and `accounts_dir` discovery are supported. Select 1-3 unique
+accounts; row order follows `accounts`, and labels are unique one- or two-character ASCII letters or
+digits. Claude Desktop profile discovery is disabled so it cannot add or shadow these accounts.
 
 Setup generates the access token, so the example omits it. Edit an existing `bridge.json` rather
 than replacing it with the example and losing its token or account selection.
 
-| Setting                    | Default                           | Meaning                                                             |
-| -------------------------- | --------------------------------- | ------------------------------------------------------------------- |
-| `accounts`                 | Required                          | 1–3 unique IDs with unique 1–2 character labels                     |
-| `listen`, `port`           | `0.0.0.0`, `8765`                 | Bridge IPv4 binding and TCP port                                    |
-| `poll_seconds`             | `120`                             | Mac collection interval, 60–3600 seconds                            |
-| `max_age`                  | `300`                             | Mark source data stale after 30–3600 seconds                        |
-| `ai_usagebar`              | Detected executable               | ai-usagebar binary path                                             |
-| `source_config`            | Standard macOS ai-usagebar config | Original source configuration                                       |
-| `display.poll_seconds`     | `15`                              | Device snapshot interval, 5–300 seconds                             |
-| `display.offline_seconds`  | `45`                              | Maximum age of a bridge response; at least the device poll interval |
-| `display.brightness`       | `160`                             | LCD brightness, 1–255                                               |
-| `display.warning_percent`  | `80`                              | Yellow percentage threshold                                         |
-| `display.critical_percent` | `95`                              | Red percentage threshold; at least the yellow threshold             |
+`poll_seconds` accepts 60-3600 seconds; `max_age` accepts 30-3600. Under `display`, `poll_seconds`
+accepts 5-300 seconds and `offline_seconds` must be between that interval and 3600. Brightness is
+1-255; percentage thresholds are 0-100, with `critical_percent` at least `warning_percent`.
 
 Restart the bridge after changing accounts, labels, ordering or display settings. The device
 receives these settings in its next snapshot, without rebuilding or flashing. Changing Wi-Fi, bridge
@@ -150,33 +132,37 @@ device reboot, rows appear with the first valid bridge response.
 
 ## Development
 
-| Command                         | Scope                                                                    |
-| ------------------------------- | ------------------------------------------------------------------------ |
-| `make install-deps`             | Install locked dependencies and PlatformIO packages                      |
-| `make lint` / `make lint-fix`   | Check formatting and Ruff rules / apply safe fixes                       |
-| `make test`                     | Python tests with branch coverage, plus native C++ tests with ASan/UBSan |
-| `make build`                    | Compile firmware without uploading                                       |
-| `make check` / `make check-fix` | All checks, tests and firmware build / safe fixes followed by all checks |
-| `make install-hooks`            | Install Prek pre-commit and Conventional Commit message hooks            |
+```sh
+make check      # All checks, tests and firmware build
+make check-fix  # Safe fixes followed by the full gate
+```
 
-Pre-commit runs `make check-fix`; CI runs `make check` on Linux and macOS. These commands use
-synthetic test data and never flash the device, provision credentials or restart the bridge.
+For focused checks:
 
-Python uses Ruff, ty, deptry, Vulture, Bandit and pysentry. Coverage includes setup subprocesses and
-reports untested USB/service code; the hardware test runner itself is excluded. There is no coverage
-threshold. C++ uses clang-format, Cppcheck, clang-tidy and compiler warnings as errors. Native tests
-exercise the actual countdown and JSON parser headers with ASan/UBSan. Prettier and Taplo format
-JSON, Markdown, YAML and TOML. PlatformIO, Prek, workflow and Renovate configs are also validated.
+```sh
+make lint
+make check-types
+make check-cpp
+make test
+make build
+```
+
+Install the Prek pre-commit and Conventional Commit hooks with `uv run --locked prek install`.
+Pre-commit runs `make check-fix`; CI runs `make check` on Linux and macOS. These checks use
+synthetic data and never flash the device, provision credentials or restart the bridge.
+
+Native tests run with ASan/UBSan, including Python-produced snapshots consumed by the firmware's
+actual parser. Python branch coverage includes setup subprocesses and reports untested USB/service
+code; the hardware test runner is excluded. There is no coverage threshold.
 
 Cppcheck analyzes owned sources without external SDK headers because it cannot parse ArduinoJson's
 templates. clang-tidy analyzes the shared firmware headers through native tests; hardware-specific
 `main.cpp` is checked by Cppcheck and the ESP32 compiler. These checks do not establish hardware
 behavior. Narrow analyzer exceptions are documented beside their configuration or source line.
 
-Renovate extends the shared Python and Bun presets and tracks PlatformIO packages through its
-registry. The configuration validator is fetched separately by `bunx`, with a managed version in
-Makefile; its dependencies are outside `bun.lock` and the project advisory scan. The `adm-zip`
-override supplies security fixes until the actionlint wrapper accepts that dependency version.
+Renovate uses the shared Python/Bun presets and PlatformIO's registry. Its validator is fetched
+separately by `bunx`. The `adm-zip` override supplies security fixes until the actionlint wrapper
+accepts that dependency version.
 
 ## Diagnostics
 

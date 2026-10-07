@@ -1,5 +1,7 @@
 import copy
 import json
+import os
+import subprocess  # nosec B404 # run the checkout's native parser test without a shell.
 import tempfile
 import threading
 import tomllib
@@ -59,6 +61,58 @@ def document():
 
 
 class QuotaTests(unittest.TestCase):
+    def test_desktop_profiles_cannot_add_or_shadow_selected_cli_accounts(self):
+        profiles = Path(self.temp.name) / "desktop-profiles"
+        for label in ("alpha", "unselected"):
+            (profiles / label).mkdir(parents=True)
+        for inherited in (None, str(profiles)):
+            with self.subTest(desktop_profiles_dir=inherited):
+                anthropic = {
+                    "accounts": [{"label": "alpha", "credentials_path": "~/cli/.credentials.json"}]
+                }
+                if inherited is not None:
+                    anthropic["desktop_profiles_dir"] = inherited
+                source = {"anthropic": anthropic}
+                original = copy.deepcopy(source)
+                text = selected_usage_config(source, [ACCOUNTS[1]])
+                selected = tomllib.loads(text)["anthropic"]
+                self.assertEqual(selected["desktop_profiles_dir"], os.devnull)
+                self.assertFalse(Path(selected["desktop_profiles_dir"]).is_dir())
+                self.assertEqual(selected["accounts"], anthropic["accounts"])
+                self.assertFalse(selected["show_default_account"])
+                self.assertNotIn(str(profiles), text)
+                self.assertEqual(source, original)
+
+    def test_bridge_snapshot_is_consumed_by_the_firmware_parser(self):
+        # C++ checks independent expected field values, not a re-encoded copy.
+        data = document()
+        for entry in data["entries"]:
+            entry["fetched_at"] = "2023-11-14T22:13:20Z"
+            entry["metrics"][0]["reset_at"] = "2023-11-15T22:13:20Z"
+            entry["metrics"][1]["reset_at"] = "2023-11-14T23:13:20Z"
+        data["entries"][1]["metrics"] = [
+            data["entries"][1]["metrics"][1] | {"percent": 0, "reset_at": None}
+        ]
+        data["entries"][2]["error"] = "synthetic provider failure"
+        display = {
+            "poll_seconds": 30,
+            "offline_seconds": 90,
+            "brightness": 64,
+            "warning_percent": 70,
+            "critical_percent": 90,
+        }
+        store = Snapshot(
+            self.store.cache, [ACCOUNTS[2], ACCOUNTS[0], ACCOUNTS[1]], max_age=900, display=display
+        )
+        store.update(data, 1700000000)
+        payload = Path(self.temp.name) / "wire.json"
+        payload.write_text(json.dumps(store.read(1700000060), allow_nan=False))
+        binary = Path(__file__).resolve().parents[1] / "artifacts/snapshot-test"
+        result = subprocess.run(  # nosec B603 # Make builds this native test before Python tests.
+            [str(binary), str(payload)], capture_output=True, text=True, timeout=10, check=False
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_source_config_does_not_fetch_default_or_copy_unrelated_secrets(self):
         source = {
             "anthropic": {

@@ -5,9 +5,9 @@ SHELL := /bin/bash -euo pipefail
 # Use the same sanitizer/compiler family on macOS and Linux. The firmware uses Xtensa GCC.
 CXX := clang++
 
-PRETTIER := bun run --silent prettier
-TAPLO := bun run --silent taplo
+PRETTIER := bun run --silent prettier -u
 ACTIONLINT := bun run --silent github-actionlint
+TAPLO := bun run --silent taplo
 CPP_FILES := $(wildcard firmware/src/*.cpp firmware/src/*.h tests/*.cpp)
 CPP_TESTS := $(wildcard tests/*.cpp)
 CPP_FLAGS := -std=c++17 -Wall -Wextra -Werror -pedantic
@@ -15,8 +15,6 @@ JSON_INCLUDE := .pio/libdeps/m5stickc-plus2/ArduinoJson/src
 # renovate: datasource=custom.platformio depName=platformio/tool/tool-cppcheck
 CPPCHECK_VERSION := 1.22200.0
 CPPCHECK := uv run --locked pio pkg exec --package platformio/tool-cppcheck@$(CPPCHECK_VERSION) -- cppcheck
-# renovate: datasource=npm depName=renovate
-RENOVATE_VERSION := 44.140.0
 
 .PHONY: install-deps
 install-deps:
@@ -25,24 +23,20 @@ install-deps:
 	uv run --locked pio pkg install
 	$(CPPCHECK) --version
 
-.PHONY: install-hooks
-install-hooks:
-	uv run --locked prek install
-
 .PHONY: lint
 lint:
-	$(PRETTIER) -u -c .
+	$(PRETTIER) -c .
 	$(TAPLO) fmt --check
-	uv run --locked ruff check .
-	uv run --locked ruff format --check .
+	uv run --locked ruff check
+	uv run --locked ruff format --check
 	uv run --locked clang-format --dry-run --Werror $(CPP_FILES)
 
 .PHONY: lint-fix
 lint-fix:
-	$(PRETTIER) -u -w .
+	$(PRETTIER) -w .
 	$(TAPLO) fmt
-	uv run --locked ruff check --fix .
-	uv run --locked ruff format .
+	uv run --locked ruff check --fix
+	uv run --locked ruff format
 	uv run --locked clang-format -i $(CPP_FILES)
 
 .PHONY: check-types
@@ -53,6 +47,10 @@ check-types:
 check-deps:
 	uv run --locked deptry .
 
+.PHONY: check-vulns
+check-vulns:
+	uv run --locked pysentry-rs .
+
 .PHONY: check-unused
 check-unused:
 	uv run --locked vulture
@@ -60,10 +58,6 @@ check-unused:
 .PHONY: check-security
 check-security:
 	git ls-files --cached --others --exclude-standard -z -- '*.py' | xargs -0 uv run --locked bandit -c pyproject.toml
-
-.PHONY: check-vulns
-check-vulns:
-	uv run --locked pysentry-rs .
 
 .PHONY: check-hooks
 check-hooks:
@@ -79,7 +73,7 @@ check-workflows:
 
 .PHONY: check-renovate
 check-renovate:
-	bunx --package renovate@$(RENOVATE_VERSION) renovate-config-validator --strict --no-global renovate.json
+	bunx --package renovate renovate-config-validator --strict --no-global renovate.json
 
 .PHONY: check-cpp
 check-cpp:
@@ -94,7 +88,7 @@ check-cpp:
 	fi
 
 .PHONY: test-python
-test-python:
+test-python: test-cpp
 	uv run --locked coverage erase
 	uv run --locked coverage run -m unittest discover -s tests -v
 	uv run --locked coverage combine
@@ -112,7 +106,7 @@ test-cpp:
 	done
 
 .PHONY: test
-test: test-python test-cpp
+test: test-python
 
 .PHONY: build
 build:

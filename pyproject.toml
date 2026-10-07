@@ -72,7 +72,6 @@ enabled = ["pypa", "pypi", "osv"]
 
 [tool.deptry]
 known_first_party = ["bridge"]
-extend_exclude = ["artifacts", '\.pio']
 
 [tool.vulture]
 paths = ["bridge", "scripts", "tests"]

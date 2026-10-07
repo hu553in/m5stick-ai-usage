@@ -90,6 +90,37 @@ int main(int argc, char **argv) {
     const auto error = deserializeJson(doc, stream);
     assert(!error);
     expectSnapshot(doc, snapshot, true);
-    assert(snapshot.count == doc["accounts"].size());
+    // The bridge integration test serializes real Python Snapshot output.
+    assert(snapshot.count == 3);
+    assert(snapshot.serverTime == 1700000060);
+    assert(snapshot.maxAge == 900);
+    assert(snapshot.display.pollSeconds == 30);
+    assert(snapshot.display.offlineSeconds == 90);
+    assert(snapshot.display.brightness == 64);
+    assert(snapshot.display.warningPercent == 70);
+    assert(snapshot.display.criticalPercent == 90);
+
+    const auto &failed = snapshot.accounts[0];
+    assert(!strcmp(failed.id, "anthropic@beta"));
+    assert(!strcmp(failed.label, "b1"));
+    assert(failed.stale && failed.fetched == 0);
+    assert(!failed.shortWindow.present && !failed.week.present);
+
+    const auto &codex = snapshot.accounts[1];
+    assert(!strcmp(codex.id, "openai"));
+    assert(!strcmp(codex.label, "o1"));
+    assert(!codex.stale && codex.fetched == 1700000000);
+    assert(codex.shortWindow.present && codex.shortWindow.used == 26);
+    assert(codex.shortWindow.reset == 1700003600);
+    assert(codex.week.present && codex.week.used == 98);
+    assert(codex.week.reset == 1700086400);
+
+    const auto &claude = snapshot.accounts[2];
+    assert(!strcmp(claude.id, "anthropic@alpha"));
+    assert(!strcmp(claude.label, "a1"));
+    assert(!claude.stale && claude.fetched == 1700000000);
+    assert(claude.shortWindow.present && claude.shortWindow.used == 0);
+    assert(claude.shortWindow.reset == 0);
+    assert(!claude.week.present);
   }
 }
