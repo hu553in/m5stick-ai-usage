@@ -5,9 +5,9 @@ SHELL := /bin/bash -euo pipefail
 # Use the same sanitizer/compiler family on macOS and Linux. The firmware uses Xtensa GCC.
 CXX := clang++
 
-PRETTIER := bun run --silent prettier -u
-ACTIONLINT := bun run --silent github-actionlint
-TAPLO := bun run --silent taplo
+PRETTIER := bun --silent prettier -u
+ACTIONLINT := bun --silent github-actionlint
+TAPLO := bun --silent taplo
 CPP_FILES := $(wildcard firmware/src/*.cpp firmware/src/*.h tests/*.cpp)
 CPP_TESTS := $(wildcard tests/*.cpp)
 CPP_FLAGS := -std=c++17 -Wall -Wextra -Werror -pedantic
