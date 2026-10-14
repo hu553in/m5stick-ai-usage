@@ -13,13 +13,13 @@ concurrency:
 
 jobs:
   check:
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v7
         with:

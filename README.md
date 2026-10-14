@@ -22,7 +22,9 @@ the display over Wi-Fi.
 
 ## Setup
 
-```sh
+Run from a checkout:
+
+```bash
 make install-deps
 uv run --locked python scripts/create_config.py --list-accounts
 ```
@@ -30,7 +32,7 @@ uv run --locked python scripts/create_config.py --list-accounts
 Choose account IDs from the list. `openai` and `anthropic` are listed even if the corresponding
 provider is not logged in. Named Claude accounts must exist in ai-usagebar's configuration:
 
-```sh
+```bash
 uv run --locked python scripts/create_config.py --ssid 'YOUR_WIFI_NAME' \
   --account 'openai=o1' --account 'anthropic@YOUR_ACCOUNT=a1'
 ```
@@ -79,7 +81,7 @@ setup synchronizes the port and token between the two config files.
 
 Build the firmware, then connect the device with a USB data cable to upload and provision it:
 
-```sh
+```bash
 make build
 uv run --locked pio run -t upload
 uv run --locked python scripts/device.py configure
@@ -96,7 +98,7 @@ from a charger instead of the Mac.
 
 ## Bridge service
 
-```sh
+```bash
 uv run --locked python scripts/install_service.py
 ```
 
@@ -106,7 +108,7 @@ is in `~/Library/LaunchAgents/`; logs are in `~/Library/Logs/m5stick-ai-usage/br
 
 After editing `bridge.json`:
 
-```sh
+```bash
 launchctl kickstart -k "gui/$(id -u)/local.m5stick-ai-usage"
 ```
 
@@ -132,22 +134,32 @@ device reboot, rows appear with the first valid bridge response.
 
 ## Development
 
-```sh
-make check      # All checks, tests and firmware build
-make check-fix  # Safe fixes followed by the full gate
+```bash
+make install-deps
+uv run --locked prek install
+make check
+make check-fix
 ```
 
-For focused checks:
+Focused checks:
 
-```sh
+```bash
 make lint
+make lint-fix
+make check-hooks
 make check-types
+make check-deps
+make check-vulns
+make check-unused
+make check-security
+make check-config
 make check-cpp
+make check-renovate
 make test
 make build
+make check-workflows
 ```
 
-Install the Prek pre-commit and Conventional Commit hooks with `uv run --locked prek install`.
 Pre-commit runs `make check-fix`; CI runs `make check` on Linux and macOS. These checks use
 synthetic data and never flash the device, provision credentials or restart the bridge.
 
@@ -166,7 +178,7 @@ accepts that dependency version.
 
 ## Diagnostics
 
-```sh
+```bash
 uv run --locked python bridge/server.py --once
 uv run --locked python scripts/device.py status
 uv run --locked python scripts/device.py screenshot --output artifacts/display.png

@@ -39,6 +39,10 @@ lint-fix:
 	uv run --locked ruff format
 	uv run --locked clang-format -i $(CPP_FILES)
 
+.PHONY: check-hooks
+check-hooks:
+	uv run --locked prek validate-config prek.toml
+
 .PHONY: check-types
 check-types:
 	uv run --locked ty check .
@@ -59,21 +63,9 @@ check-unused:
 check-security:
 	git ls-files --cached --others --exclude-standard -z -- '*.py' | xargs -0 uv run --locked bandit -c pyproject.toml
 
-.PHONY: check-hooks
-check-hooks:
-	uv run --locked prek validate-config prek.toml
-
 .PHONY: check-config
 check-config:
 	uv run --locked pio project config --lint
-
-.PHONY: check-workflows
-check-workflows:
-	$(ACTIONLINT)
-
-.PHONY: check-renovate
-check-renovate:
-	bunx --package renovate renovate-config-validator --strict --no-global renovate.json
 
 .PHONY: check-cpp
 check-cpp:
@@ -87,12 +79,9 @@ check-cpp:
 		uv run --locked clang-tidy $(CPP_TESTS) -- $(CPP_FLAGS) -isystem $(JSON_INCLUDE); \
 	fi
 
-.PHONY: test-python
-test-python: test-cpp
-	uv run --locked coverage erase
-	uv run --locked coverage run -m unittest discover -s tests -v
-	uv run --locked coverage combine
-	uv run --locked coverage report
+.PHONY: check-renovate
+check-renovate:
+	bunx --package renovate renovate-config-validator --strict --no-global renovate.json
 
 .PHONY: test-cpp
 test-cpp:
@@ -105,12 +94,23 @@ test-cpp:
 		"$$binary"; \
 	done
 
+.PHONY: test-python
+test-python: test-cpp
+	uv run --locked coverage erase
+	uv run --locked coverage run -m unittest discover -s tests -v
+	uv run --locked coverage combine
+	uv run --locked coverage report
+
 .PHONY: test
 test: test-python
 
 .PHONY: build
 build:
 	uv run --locked pio run
+
+.PHONY: check-workflows
+check-workflows:
+	$(ACTIONLINT)
 
 .PHONY: check
 check: lint check-hooks check-types check-deps check-vulns check-unused check-security check-config check-cpp check-renovate test build check-workflows

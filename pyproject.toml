@@ -20,8 +20,8 @@ dev = [
   "platformio>=6.2.0",
   "prek>=0.5.5",
   "pysentry-rs>=0.5.0",
-  "ruff>=0.16.10",
-  "ty>=0.0.85",
+  "ruff>=0.17.0",
+  "ty>=0.0.87",
   "vulture>=2.16",
 ]
 
@@ -29,7 +29,6 @@ dev = [
 link-mode = "copy"
 
 [tool.ruff]
-target-version = "py314"
 line-length = 100
 
 [tool.ruff.lint]
