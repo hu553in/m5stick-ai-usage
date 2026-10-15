@@ -4,7 +4,7 @@ version = "1.0.2"
 description = "Codex and Claude usage-limit monitor for M5StickC Plus2."
 authors = [{ name = "Ruslan Khasanshin" }]
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.15.0"
 dependencies = ["pillow>=12.3.0", "pyserial>=3.5"]
 
 [project.urls]
