@@ -248,7 +248,7 @@ void writeStatus() {
 
 void writeScreenshot() {
   drawScreen();
-  Serial.printf("FRAME %d %d RGB888\n", frame.width(), frame.height());
+  Serial.printf("FRAME %d %d RGB888\n", int(frame.width()), int(frame.height()));
   uint8_t row[240 * 3];
   for (int y = 0; y < frame.height(); ++y) {
     frame.readRectRGB(0, y, frame.width(), 1, row);
