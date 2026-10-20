@@ -301,7 +301,7 @@ dev = [
     { name = "coverage", specifier = ">=7.16.2" },
     { name = "deptry", specifier = ">=0.25.1" },
     { name = "platformio", specifier = ">=6.2.0" },
-    { name = "prek", specifier = ">=0.5.5" },
+    { name = "prek", specifier = ">=0.5.6" },
     { name = "pysentry-rs", specifier = ">=0.5.0" },
     { name = "ruff", specifier = ">=0.17.1" },
     { name = "ty", specifier = ">=0.0.89" },
