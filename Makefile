@@ -5,7 +5,6 @@ SHELL := /bin/bash -euo pipefail
 # Use the same sanitizer/compiler family on macOS and Linux. The firmware uses Xtensa GCC.
 CXX := clang++
 
-PRETTIER := bun --silent prettier -u
 ACTIONLINT := bun --silent github-actionlint
 TAPLO := bun --silent taplo
 CPP_FILES := $(wildcard firmware/src/*.cpp firmware/src/*.h tests/*.cpp)
@@ -25,7 +24,7 @@ install-deps:
 
 .PHONY: lint
 lint:
-	$(PRETTIER) -c .
+	bun fmt --check
 	$(TAPLO) fmt --check
 	uv run --locked ruff check
 	uv run --locked ruff format --check
@@ -33,7 +32,7 @@ lint:
 
 .PHONY: lint-fix
 lint-fix:
-	$(PRETTIER) -w .
+	bun fmt
 	$(TAPLO) fmt
 	uv run --locked ruff check --fix
 	uv run --locked ruff format

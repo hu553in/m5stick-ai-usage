@@ -4,8 +4,7 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@taplo/cli": "^0.7.0",
-    "github-actionlint": "^1.7.12",
-    "prettier": "^3.9.9"
+    "github-actionlint": "^1.7.12"
   },
   "overrides": {
     "adm-zip": "^0.6.1"
