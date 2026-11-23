@@ -11,7 +11,6 @@ CPP_FILES := $(wildcard firmware/src/*.cpp firmware/src/*.h tests/*.cpp)
 CPP_TESTS := $(wildcard tests/*.cpp)
 CPP_FLAGS := -std=c++17 -Wall -Wextra -Werror -pedantic
 JSON_INCLUDE := .pio/libdeps/m5stickc-plus2/ArduinoJson/src
-# renovate: datasource=custom.platformio depName=platformio/tool/tool-cppcheck
 CPPCHECK_VERSION := 1.22200.0
 CPPCHECK := uv run --locked pio pkg exec --package platformio/tool-cppcheck@$(CPPCHECK_VERSION) -- cppcheck
 
@@ -78,10 +77,6 @@ check-cpp:
 		uv run --locked clang-tidy $(CPP_TESTS) -- $(CPP_FLAGS) -isystem $(JSON_INCLUDE); \
 	fi
 
-.PHONY: check-renovate
-check-renovate:
-	bunx --package renovate renovate-config-validator --strict --no-global renovate.json
-
 .PHONY: test-cpp
 test-cpp:
 	@mkdir -p artifacts
@@ -112,7 +107,7 @@ check-workflows:
 	$(ACTIONLINT)
 
 .PHONY: check
-check: lint check-hooks check-types check-deps check-vulns check-unused check-security check-config check-cpp check-renovate test build check-workflows
+check: lint check-hooks check-types check-deps check-vulns check-unused check-security check-config check-cpp test build check-workflows
 
 .PHONY: check-fix
 check-fix: lint-fix

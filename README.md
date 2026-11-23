@@ -154,7 +154,6 @@ make check-unused
 make check-security
 make check-config
 make check-cpp
-make check-renovate
 make test
 make build
 make check-workflows
@@ -172,9 +171,8 @@ templates. clang-tidy analyzes the shared firmware headers through native tests;
 `main.cpp` is checked by Cppcheck and the ESP32 compiler. These checks do not establish hardware
 behavior. Narrow analyzer exceptions are documented beside their configuration or source line.
 
-Renovate uses the shared Python/Bun presets and PlatformIO's registry. Its validator is fetched
-separately by `bunx`. The `adm-zip` override supplies security fixes until the actionlint wrapper
-accepts that dependency version.
+The `adm-zip` override supplies security fixes until the actionlint wrapper accepts that dependency
+version.
 
 ## Diagnostics
 
