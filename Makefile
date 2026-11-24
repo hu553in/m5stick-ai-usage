@@ -6,7 +6,6 @@ SHELL := /bin/bash -euo pipefail
 CXX := clang++
 
 ACTIONLINT := bun --silent github-actionlint
-TAPLO := bun --silent taplo
 CPP_FILES := $(wildcard firmware/src/*.cpp firmware/src/*.h tests/*.cpp)
 CPP_TESTS := $(wildcard tests/*.cpp)
 CPP_FLAGS := -std=c++17 -Wall -Wextra -Werror -pedantic
@@ -24,7 +23,6 @@ install-deps:
 .PHONY: lint
 lint:
 	bun fmt --check
-	$(TAPLO) fmt --check
 	uv run --locked ruff check
 	uv run --locked ruff format --check
 	uv run --locked clang-format --dry-run --Werror $(CPP_FILES)
@@ -32,14 +30,13 @@ lint:
 .PHONY: lint-fix
 lint-fix:
 	bun fmt
-	$(TAPLO) fmt
 	uv run --locked ruff check --fix
 	uv run --locked ruff format
 	uv run --locked clang-format -i $(CPP_FILES)
 
 .PHONY: check-hooks
 check-hooks:
-	uv run --locked prek validate-config prek.toml
+	bunx --minimum-release-age 259200 lefthook validate
 
 .PHONY: check-types
 check-types:

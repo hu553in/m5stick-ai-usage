@@ -7,7 +7,7 @@ Checks: >-
 # arguments are intentional here; uncaught exceptions fail these native tests.
 WarningsAsErrors: '*'
 HeaderFilterRegex: '(^|/)firmware/src/'
-# LLVM 22 reports false leaks when inlining ArduinoJson's placement-new allocator.
+# Clang's analyzer reports false leaks when inlining ArduinoJson's placement-new allocator.
 # Keep template-body analysis enabled; native sanitizers exercise the allocator.
 ExtraArgs:
   - -Xclang

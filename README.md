@@ -15,25 +15,25 @@ the display over Wi-Fi.
 
 - M5StickC Plus2, a USB data cable for flashing and provisioning, and a 2.4 GHz Wi-Fi network.
 - A Mac with ai-usagebar installed and authenticated for the CLI accounts to display.
-- [uv](https://docs.astral.sh/uv/getting-started/installation/),
-  [Bun](https://bun.sh/docs/installation), Node.js, Make and Clang. On macOS, install the Xcode
-  Command Line Tools with `xcode-select --install`. Linux development checks require `clang` and
-  `build-essential` on Debian/Ubuntu; the launch agent is macOS-specific.
+- Python 3.15 or newer, which `uv` can install.
+- [uv](https://docs.astral.sh/uv/getting-started/installation/), Make and Clang. On macOS, install
+  the Xcode Command Line Tools with `xcode-select --install`. Linux development checks require
+  `clang` and `build-essential` on Debian/Ubuntu. The launch agent is macOS-specific.
+- [Bun](https://bun.sh/docs/installation) for development checks.
 
 ## Setup
 
 Run from a checkout:
 
 ```bash
-make install-deps
-uv run --locked python scripts/create_config.py --list-accounts
+uv run --locked --no-dev python scripts/create_config.py --list-accounts
 ```
 
 Choose account IDs from the list. `openai` and `anthropic` are listed even if the corresponding
 provider is not logged in. Named Claude accounts must exist in ai-usagebar's configuration:
 
 ```bash
-uv run --locked python scripts/create_config.py --ssid 'YOUR_WIFI_NAME' \
+uv run --locked --no-dev python scripts/create_config.py --ssid 'YOUR_WIFI_NAME' \
   --account 'openai=o1' --account 'anthropic@YOUR_ACCOUNT=a1'
 ```
 
@@ -84,8 +84,8 @@ Build the firmware, then connect the device with a USB data cable to upload and 
 ```bash
 make build
 uv run --locked pio run -t upload
-uv run --locked python scripts/device.py configure
-uv run --locked python scripts/device.py status
+uv run --locked --no-dev python scripts/device.py configure
+uv run --locked --no-dev python scripts/device.py status
 ```
 
 Port detection works with one matching USB adapter. Otherwise, pass `--upload-port PORT` to
@@ -99,7 +99,7 @@ from a charger instead of the Mac.
 ## Bridge service
 
 ```bash
-uv run --locked python scripts/install_service.py
+uv run --locked --no-dev python scripts/install_service.py
 ```
 
 The launch agent `local.m5stick-ai-usage` starts immediately, runs after login and restarts after
@@ -136,10 +136,11 @@ device reboot, rows appear with the first valid bridge response.
 
 ```bash
 make install-deps
-uv run --locked prek install
+bunx lefthook install
 make check
-make check-fix
 ```
+
+Use `make check-fix` to apply supported fixes before the full check.
 
 Focused checks:
 
@@ -177,18 +178,18 @@ version.
 ## Diagnostics
 
 ```bash
-uv run --locked python bridge/server.py --once
-uv run --locked python scripts/device.py status
-uv run --locked python scripts/device.py screenshot --output artifacts/display.png
+uv run --locked --no-dev python bridge/server.py --once
+uv run --locked --no-dev python scripts/device.py status
+uv run --locked --no-dev python scripts/device.py screenshot --output artifacts/display.png
 ```
 
 `--once` fetches real usage data. USB diagnostics do not print credentials or the device token.
 Screenshots come from the framebuffer sent to the LCD.
 
-Run `uv run --locked python scripts/verify_device.py` only with a connected, provisioned device and
-an installed bridge. It reboots the device, reconnects Wi-Fi, briefly stops the bridge and tests
-launchd restart. It restores the service after the outage and saves a report under `artifacts/`.
-Rerun these hardware checks after installing changed firmware.
+Run `uv run --locked --no-dev python scripts/verify_device.py` only with a connected, provisioned
+device and an installed bridge. It reboots the device, reconnects Wi-Fi, briefly stops the bridge
+and tests launchd restart. It restores the service after the outage and saves a report under
+`artifacts/`. Rerun these hardware checks after installing changed firmware.
 
 ## References
 
